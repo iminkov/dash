@@ -1,9 +1,13 @@
+
 #include <dash/Init.h>
 #include <dash/Team.h>
 #include <dash/Types.h>
 #include <dash/Shared.h>
+
 #include <dash/util/Locality.h>
 #include <dash/util/Config.h>
+
+#include <dash/internal/Annotation.h>
 
 
 namespace dash {
@@ -32,26 +36,16 @@ void dash::init(int * argc, char ** *argv)
   dart_init(argc, argv);
   dash::_initialized = true;
 
-#if DASH_DEBUG
   if (dash::util::Config::get<bool>("DASH_INIT_BREAKPOINT")) {
-#if 0
-    dash::Shared<int> blockvar;
-    blockvar.set(1);
-    while (blockvar.get()) {
-      dash::internal::wait_breakpoint();
-    }
-#else
-    int blockvar = 0;
     if (dash::myid() == 0) {
-      blockvar = 1;
-    }
-    while (blockvar) {
-      dash::internal::wait_breakpoint();
+      int blockvar = 1;
+      dash::prevent_opt_elimination(blockvar);
+      while (blockvar) {
+        dash::internal::wait_breakpoint();
+      }
     }
     dash::barrier();
-#endif
   }
-#endif
 
   DASH_LOG_DEBUG("dash::init", "dash::util::Locality::init()");
   dash::util::Locality::init();
