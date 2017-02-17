@@ -135,7 +135,7 @@ template<
   class    PatternT       = TilePattern<NumDimensions, ROW_MAJOR, IndexT> >
 class Matrix
 {
-#if !defined(_CRAYC) && !defined(__INTEL_COMPILER)
+#if !defined(_CRAYC) && !defined(__INTEL_COMPILER) && !(defined(__GNUC__) && (__GNUC__<5))
   // Cray and Intel compilers still does not support this feature
   static_assert(std::is_trivially_copyable<ElementT>::value,
     "Element type must be trivial copyable");
