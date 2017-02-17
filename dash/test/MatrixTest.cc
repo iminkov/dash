@@ -45,7 +45,8 @@ TEST_F(MatrixTest, Views)
   size_t num_elem_per_unit   = num_elem_total / dash::size();
   size_t num_blocks_per_unit = num_elem_per_unit / block_size;
 
-  LOG_MESSAGE("nunits:%d elem_total:%d elem_per_unit:%d blocks_per_unit:d%",
+  LOG_MESSAGE("nunits:%lu elem_total:%lu elem_per_unit:%lu "
+              "blocks_per_unit:%lu",
               dash::size(), num_elem_total,
               num_elem_per_unit, num_blocks_per_unit);
 
@@ -893,7 +894,7 @@ TEST_F(MatrixTest, DelayedAlloc)
                          "phase:",       phase_coords, "=", phase,
                          "expected:",    expected,
                          "actual:",      actual);
-          EXPECT_DOUBLE_EQ_U(expected, actual);
+          EXPECT_EQ_U(expected, actual);
         }
       }
     }
@@ -1041,19 +1042,36 @@ TEST_F(MatrixTest, UnderfilledLocalViewSpec){
   narray.barrier();
   
   if ( 0 == myid ) {
-    LOG_MESSAGE("global extent is %lu x %lu", narray.extent(0), narray.extent(1));
+    LOG_MESSAGE("global extent is %lu x %lu",
+                narray.extent(0), narray.extent(1));
   }
-  LOG_MESSAGE("local extent is %lu x %lu", narray.local.extent(0), narray.local.extent(1));
+  LOG_MESSAGE("local extent is %lu x %lu",
+              narray.local.extent(0), narray.local.extent(1));
 
   narray.barrier();
 
-  std::fill(narray.lbegin(), narray.lend(), 0);
+  // test lbegin, lend
+  std::fill(narray.lbegin(), narray.lend(), 1);
+  std::for_each(narray.lbegin(), narray.lend(), 
+      [](uint32_t & el){
+        ASSERT_EQ_U(el, 1);
+      });
+  dash::barrier();
+  // test local view
+  std::fill(narray.local.begin(), narray.local.end(), 2);
+  std::for_each(narray.local.begin(), narray.local.end(), 
+      [](uint32_t el){
+        ASSERT_EQ_U(el, 2);
+      });
 
   uint32_t elementsvisited = std::distance(narray.lbegin(), narray.lend());  
   auto local_elements= narray.local.extent(0) * narray.local.extent(1);
   
   ASSERT_EQ_U(elementsvisited, local_elements);
   ASSERT_EQ_U(elementsvisited, narray.local.size());
+
+  elementsvisited = std::distance(narray.local.begin(), narray.local.end());
+  ASSERT_EQ_U(elementsvisited, local_elements);
 }
 
 

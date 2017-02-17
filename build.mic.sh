@@ -50,8 +50,9 @@ rm -Rf $BUILD_DIR/*
                         -DCMAKE_CXX_COMPILER=mpiicc \
                         -DINSTALL_PREFIX=$HOME/opt/dash-0.3.0-mic/ \
                         -DDART_IMPLEMENTATIONS=mpi \
-                        -DENABLE_DEVELOPER_COMPILER_WARNINGS=OFF \
-                        -DENABLE_EXTENDED_COMPILER_WARNINGS=OFF \
+                        -DENABLE_THREADSUPPORT=ON \
+                        -DENABLE_DEV_COMPILER_WARNINGS=OFF \
+                        -DENABLE_EXT_COMPILER_WARNINGS=OFF \
                         -DENABLE_ASSERTIONS=OFF \
                         \
                         -DENABLE_SHARED_WINDOWS=ON \

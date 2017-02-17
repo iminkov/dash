@@ -139,21 +139,28 @@ public:
   /// Type alias for LocalArrayRef<T,I,P>::view_type
   typedef LocalArrayRef<T, IndexType, PatternType>                 View;
   typedef self_t                                             local_type;
-//typedef Array_t                                           domain_type;
   typedef PatternType                                      pattern_type;
+
+public:
+  typedef std::integral_constant<dim_t, 1>
+    rank;
+
+  static constexpr dim_t ndim() {
+    return 1;
+  }
 
 public:
   /**
    * Constructor, creates a local access proxy for the given array.
    */
   LocalArrayRef(
-    Array<T, IndexType, PatternType> * array)
+    const Array<T, IndexType, PatternType> * array)
   : _array(array)
   { }
 
   LocalArrayRef(
     /// Pointer to array instance referenced by this view.
-    Array<T, IndexType, PatternType> * array,
+    const Array<T, IndexType, PatternType> * array,
     /// The view's offset and extent within the referenced array.
     const ViewSpec_t & viewspec)
   : _array(array),
@@ -210,13 +217,13 @@ public:
   }
 
   /**
-   * Checks whether the given global index is local to the calling unit.
+   * Checks whether the given local index is local to the calling unit.
    *
    * \return  True
    */
   constexpr bool is_local(
     /// A global array index
-    index_type global_index) const {
+    index_type local_index) const {
     return true;
   }
 
@@ -237,9 +244,9 @@ public:
 
 private:
   /// Pointer to array instance referenced by this view.
-  Array_t * const _array;
+  const Array_t * const _array;
   /// The view's offset and extent within the referenced array.
-  ViewSpec_t      _viewspec;
+  ViewSpec_t            _viewspec;
 };
 
 #ifndef DOXYGEN
@@ -271,6 +278,14 @@ public:
 
   typedef GlobAsyncRef<T>                               async_reference;
   typedef const GlobAsyncRef<T>                   const_async_reference;
+
+public:
+  typedef std::integral_constant<dim_t, 1>
+    rank;
+
+  static constexpr dim_t ndim() {
+    return 1;
+  }
 
 private:
   Array<T, IndexType, PatternType> * const _array;
@@ -323,14 +338,14 @@ public:
   /**
    * Number of array elements in local memory.
    */
-  inline size_type size() const noexcept {
+  constexpr size_type size() const noexcept {
     return _array->size();
   }
 
   /**
    * Subscript operator, access to local array element at given position.
    */
-  inline const_async_reference operator[](const size_t n) const  {
+  constexpr const_async_reference operator[](const size_t n) const  {
     return async_reference(
              _array->m_globmem,
              (*(_array->begin() + n)).dart_gptr());
@@ -349,26 +364,22 @@ public:
    * Complete all outstanding asynchronous operations on the referenced array
    * on all units.
    */
-  void flush() {
-    DASH_LOG_TRACE("AsyncArrayRef.flush()");
+  void flush() const {
     // could also call _array->flush();
     _array->m_globmem->flush();
   }
 
-  void flush_local() {
-    DASH_LOG_TRACE("AsyncArrayRef.flush_local()");
+  void flush_local() const {
     // could also call _array->flush_local();
     _array->m_globmem->flush_local();
   }
 
-  void flush_all() {
-    DASH_LOG_TRACE("AsyncArrayRef.flush()");
+  void flush_all() const {
     // could also call _array->flush();
     _array->m_globmem->flush_all();
   }
 
-  void flush_local_all() {
-    DASH_LOG_TRACE("AsyncArrayRef.flush_local_all()");
+  void flush_local_all() const {
     // could also call _array->flush_local_all();
     _array->m_globmem->flush_local_all();
   }
@@ -379,7 +390,7 @@ public:
    *
    * \see DashAsyncProxyConcept
    */
-  void push() {
+  void push() const {
     flush_local_all();
   }
 
@@ -389,7 +400,7 @@ public:
    *
    * \see DashAsyncProxyConcept
    */
-  void fetch() {
+  void fetch() const {
     flush_all();
   }
 };
@@ -476,32 +487,65 @@ public:
     View;
 
 public:
+  typedef std::integral_constant<dim_t, 1>
+    rank;
+
+  static constexpr dim_t ndim() {
+    return 1;
+  }
+
+public:
   ArrayRef(
     /// Pointer to array instance referenced by this view.
-    Array_t          * array,
+    const Array_t    * array,
     /// The view's offset and extent within the referenced array.
     const ViewSpec_t & viewspec)
   : _arr(array),
-    _viewspec(viewspec)
+    _viewspec(viewspec),
+    _begin(array->begin() + _viewspec.offsets()[0]),
+    _end(array->begin()   + _viewspec.offsets()[0] + _viewspec.extents()[0]),
+    _size(_viewspec.size())
   { }
 
 public:
-  inline    Team              & team();
+  constexpr Team              & team() const {
+    return _arr->team();
+  }
 
-  constexpr size_type           size()             const noexcept;
+  constexpr size_type           size()             const noexcept {
+    return _size;
+  }
+
   constexpr size_type           local_size()       const noexcept;
   constexpr size_type           local_capacity()   const noexcept;
-  constexpr size_type           extent(dim_t dim)  const noexcept;
-  constexpr Extents_t           extents()          const noexcept;
-  constexpr bool                empty()            const noexcept;
+
+  constexpr size_type           extent(dim_t dim)  const noexcept {
+    return _viewspec.extents()[dim];
+  }
+  constexpr Extents_t           extents()          const noexcept {
+    return _viewspec.extents();
+  }
+  constexpr bool                empty()            const noexcept {
+    return _size == 0;
+  }
 
   inline    void                barrier()          const;
 
-  inline    const_pointer       data()             const noexcept;
-  inline    iterator            begin()                  noexcept;
-  inline    const_iterator      begin()            const noexcept;
-  inline    iterator            end()                    noexcept;
-  inline    const_iterator      end()              const noexcept;
+  constexpr const_pointer       data()             const noexcept {
+    return _begin;
+  }
+  inline    iterator            begin()                  noexcept {
+    return _begin;
+  }
+  constexpr const_iterator      begin()            const noexcept {
+    return _begin;
+  }
+  inline    iterator            end()                    noexcept {
+    return _end;
+  }
+  constexpr const_iterator      end()              const noexcept {
+    return _end;
+  }
   /// View representing elements in the active unit's local memory.
   inline    local_type          sub_local()              noexcept;
   /// Pointer to first element in local range.
@@ -517,11 +561,10 @@ public:
     return _arr->_begin[global_index];
   }
 
-  const_reference operator[](
+  constexpr const_reference operator[](
     /// The position of the element to return
     size_type global_index) const
   {
-    DASH_LOG_TRACE("ArrayRef.[]", global_index);
     return _arr->_begin[global_index];
   }
 
@@ -562,10 +605,15 @@ public:
 
 private:
   /// Pointer to array instance referenced by this view.
-  Array_t    * _arr;
+  const Array_t * const _arr;
   /// The view's offset and extent within the referenced array.
-  ViewSpec_t   _viewspec;
-
+  ViewSpec_t            _viewspec;
+  /// Iterator to initial element in the array
+  iterator              _begin;
+  /// Iterator to final element in the array
+  iterator              _end;
+  /// Total number of elements in the array
+  size_type             _size;
 }; // class ArrayRef
 
 /**
@@ -639,6 +687,14 @@ public:
   typedef ArrayRef<ElementType, IndexType, PatternType>
     View;
 
+public:
+  typedef std::integral_constant<dim_t, 1>
+    rank;
+
+  static constexpr dim_t ndim() {
+    return 1;
+  }
+
 private:
   typedef DistributionSpec<1>
     DistributionSpec_t;
@@ -650,6 +706,30 @@ public:
   local_type           local;
   /// Proxy object, provides non-blocking operations on array.
   async_type           async;
+
+private:
+  /// Team containing all units interacting with the array
+  dash::Team         * m_team      = nullptr;
+  /// DART id of the unit that created the array
+  team_unit_t          m_myid;
+  /// Element distribution pattern
+  PatternType          m_pattern;
+  /// Global memory allocation and -access
+  glob_mem_type      * m_globmem   = nullptr;
+  /// Iterator to initial element in the array
+  iterator             m_begin;
+  /// Iterator to final element in the array
+  iterator             m_end;
+  /// Total number of elements in the array
+  size_type            m_size;
+  /// Number of local elements in the array
+  size_type            m_lsize;
+  /// Number allocated local elements in the array
+  size_type            m_lcapacity;
+  /// Native pointer to first local element in the array
+  ElementType        * m_lbegin    = nullptr;
+  /// Native pointer past last local element in the array
+  ElementType        * m_lend      = nullptr;
 
 public:
 /*
@@ -804,27 +884,7 @@ public:
    */
   Array(const self_t & other) = delete;
 
-  /**
-   * Move constructor is deleted as move semantics are non-trivial for
-   * distributed arrays.
-   */
-  Array(self_t && other) = delete;
-
-  /**
-   * Destructor, deallocates array elements.
-   */
-  ~Array()
-  {
-    DASH_LOG_TRACE_VAR("Array.~Array()", this);
-    deallocate();
-    DASH_LOG_TRACE_VAR("Array.~Array >", this);
-  }
-
-  /**
-   * Move assignment operator is deleted as move semantics are non-trivial
-   * for distributed arrays.
-   */
-  self_t & operator=(self_t && other) = delete;
+  Array(self_t && other)      = delete;
 
   /**
    * Assignment operator is deleted to prevent unintentional copies of
@@ -846,21 +906,30 @@ public:
    */
   self_t & operator=(const self_t & rhs) = delete;
 
+  self_t & operator=(self_t && other)    = delete;
+
+  /**
+   * Destructor, deallocates array elements.
+   */
+  ~Array()
+  {
+    DASH_LOG_TRACE_VAR("Array.~Array()", this);
+    deallocate();
+    DASH_LOG_TRACE_VAR("Array.~Array >", this);
+  }
+
   /**
    * View at block at given global block offset.
    */
-  View block(index_type block_gindex)
+  constexpr const View block(index_type block_gindex) const
   {
-    DASH_LOG_TRACE("Array.block()", block_gindex);
-    ViewSpec<1> block_view = pattern().block(block_gindex);
-    DASH_LOG_TRACE("Array.block >", block_view);
-    return View(this, block_view);
+    return View(this, ViewSpec<1>(pattern().block(block_gindex)));
   }
 
   /**
    * Global const pointer to the beginning of the array.
    */
-  const_pointer data() const noexcept
+  constexpr const_pointer data() const noexcept
   {
     return m_begin;
   }
@@ -876,7 +945,7 @@ public:
   /**
    * Global pointer to the beginning of the array.
    */
-  const_iterator begin() const noexcept
+  constexpr const_iterator begin() const noexcept
   {
     return m_begin;
   }
@@ -892,7 +961,7 @@ public:
   /**
    * Global pointer to the end of the array.
    */
-  const_iterator end() const noexcept
+  constexpr const_iterator end() const noexcept
   {
     return m_end;
   }
@@ -900,7 +969,7 @@ public:
   /**
    * Native pointer to the first local element in the array.
    */
-  ElementType * lbegin() const noexcept
+  constexpr ElementType * lbegin() const noexcept
   {
     return m_lbegin;
   }
@@ -908,7 +977,7 @@ public:
   /**
    * Native pointer to the end of the array.
    */
-  ElementType * lend() const noexcept
+  constexpr ElementType * lend() const noexcept
   {
     return m_lend;
   }
@@ -923,10 +992,7 @@ public:
     /// The position of the element to return
     size_type global_index)
   {
-    DASH_LOG_TRACE_VAR("Array.[]=()", global_index);
-    auto global_ref = m_begin[global_index];
-    DASH_LOG_TRACE_VAR("Array.[]= >", global_ref);
-    return global_ref;
+    return m_begin[global_index];
   }
 
   /**
@@ -935,14 +1001,11 @@ public:
    * \return  A global reference to the element in the array at the given
    *          index.
    */
-  const_reference operator[](
+  constexpr const_reference operator[](
     /// The position of the element to return
     size_type global_index) const
   {
-    DASH_LOG_TRACE_VAR("Array.[]()", global_index);
-    auto global_ref = m_begin[global_index];
-    DASH_LOG_TRACE_VAR("Array.[] >", global_ref);
-    return global_ref;
+    return m_begin[global_index];
   }
 
   /**
@@ -994,7 +1057,7 @@ public:
    *
    * \return  The number of elements in the array.
    */
-  inline size_type size() const noexcept
+  constexpr size_type size() const noexcept
   {
     return m_size;
   }
@@ -1005,7 +1068,7 @@ public:
    *
    * \return  The number of elements in the array.
    */
-  inline size_type capacity() const noexcept
+  constexpr size_type capacity() const noexcept
   {
     return m_size;
   }
@@ -1027,7 +1090,7 @@ public:
    * \return  The number of elements in the array that are local to the
    *          calling unit.
    */
-  inline size_type lsize() const noexcept
+  constexpr size_type lsize() const noexcept
   {
     return m_lsize;
   }
@@ -1038,7 +1101,7 @@ public:
    * \return  The number of allocated elements in the array that are local
    *          to the calling unit.
    */
-  inline size_type lcapacity() const noexcept
+  constexpr size_type lcapacity() const noexcept
   {
     return m_lcapacity;
   }
@@ -1048,12 +1111,12 @@ public:
    *
    * \return  True if \c size() is 0, otherwise false
    */
-  inline bool empty() const noexcept
+  constexpr bool empty() const noexcept
   {
     return size() == 0;
   }
 
-  inline View local_in(dash::util::Locality::Scope scope)
+  constexpr View local_in(dash::util::Locality::Scope scope) const
   {
     return View(); // TODO
   }
@@ -1064,7 +1127,7 @@ public:
    * \return  True if the array element referenced by the index is held
    *          in the calling unit's local memory
    */
-  bool is_local(
+  constexpr bool is_local(
     /// A global array index
     index_type global_index) const
   {
@@ -1093,12 +1156,6 @@ public:
   constexpr const PatternType & pattern() const
   {
     return m_pattern;
-  }
-
-  template<int level>
-  dash::HView<self_t, level> hview()
-  {
-    return dash::HView<self_t, level>(*this);
   }
 
   bool allocate(
@@ -1295,30 +1352,6 @@ private:
     DASH_LOG_TRACE("Array._allocate >", "finished");
     return true;
   }
-
-private:
-  /// Team containing all units interacting with the array
-  dash::Team         * m_team      = nullptr;
-  /// DART id of the unit that created the array
-  team_unit_t          m_myid;
-  /// Element distribution pattern
-  PatternType          m_pattern;
-  /// Global memory allocation and -access
-  glob_mem_type      * m_globmem   = nullptr;
-  /// Iterator to initial element in the array
-  iterator             m_begin;
-  /// Iterator to final element in the array
-  iterator             m_end;
-  /// Total number of elements in the array
-  size_type            m_size;
-  /// Number of local elements in the array
-  size_type            m_lsize;
-  /// Number allocated local elements in the array
-  size_type            m_lcapacity;
-  /// Native pointer to first local element in the array
-  ElementType        * m_lbegin    = nullptr;
-  /// Native pointer past last local element in the array
-  ElementType        * m_lend      = nullptr;
 
 };
 

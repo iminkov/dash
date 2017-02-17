@@ -52,8 +52,9 @@ rm -Rf $BUILD_DIR/*
                         -DENVIRONMENT_TYPE=default \
                         -DINSTALL_PREFIX=$HOME/opt/dash-0.3.0/ \
                         -DDART_IMPLEMENTATIONS=mpi \
-                        -DENABLE_DEVELOPER_COMPILER_WARNINGS=OFF \
-                        -DENABLE_EXTENDED_COMPILER_WARNINGS=OFF \
+                        -DENABLE_THREADSUPPORT=OFF \
+                        -DENABLE_DEV_COMPILER_WARNINGS=OFF \
+                        -DENABLE_EXT_COMPILER_WARNINGS=OFF \
                         -DENABLE_LT_OPTIMIZATION=OFF \
                         -DENABLE_ASSERTIONS=ON \
                         \
